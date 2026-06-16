@@ -3,9 +3,10 @@ import api from '../services/api';
 
 interface MoradorForm {
   nome: string;
-  bloco: string;
-  apartamento: string;
-  tipo: 'Proprietario' | 'Inquilino' | '';
+  cpf: string;
+  telefone: string;
+  idade: number | '';
+  apartamentoId: number | '';
 }
 
 interface CadastroMoradorProps {
@@ -15,17 +16,21 @@ interface CadastroMoradorProps {
 export default function CadastroMorador({ onCancelar }: CadastroMoradorProps) {
   const [form, setForm] = useState<MoradorForm>({
     nome: '',
-    bloco: '',
-    apartamento: '',
-    tipo: ''
+    cpf: '',
+    telefone: '',
+    idade: '',
+    apartamentoId: ''
   });
 
   const [loading, setLoading] = useState(false);
   const [mensagem, setMensagem] = useState({ tipo: '', texto: '' });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setForm(prev => ({ ...prev, [name]: value }));
+    setForm(prev => ({ 
+      ...prev, 
+      [name]: name === 'idade' || name === 'apartamentoId' ? (value ? Number(value) : '') : value 
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -33,19 +38,31 @@ export default function CadastroMorador({ onCancelar }: CadastroMoradorProps) {
     setLoading(true);
     setMensagem({ tipo: '', texto: '' });
 
+    // Monta o payload idêntico ao modelo mapeado no seu Hibernate do Spring Boot
+    const payload = {
+      nome: form.nome,
+      cpf: form.cpf,
+      telefone: form.telefone,
+      idade: form.idade,
+      apartamento: {
+        id: form.apartamentoId
+      }
+    };
+
     try {
-      const response = await api.post('/moradores', form);
+      const response = await api.post('/moradores', payload);
       
       if (response.status === 201 || response.status === 200) {
-        setMensagem({ tipo: 'sucesso', texto: 'Morador cadastrado com sucesso! 🎉' });
-        setForm({ nome: '', bloco: '', apartamento: '', tipo: '' });
+        setMensagem({ tipo: 'sucesso', texto: 'Morador salvo no banco de dados com sucesso! 🎉' });
+        
+        setTimeout(() => {
+          onCancelar(); // Volta para a listagem atualizada
+        }, 1500);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      setMensagem({ 
-        tipo: 'erro', 
-        shadow: 'Erro ao conectar com o servidor. Salvando localmente para testes por enquanto!' 
-      });
+      const msgErro = error.response?.data?.message || 'Erro ao salvar. Verifique se o ID do apartamento existe no banco.';
+      setMensagem({ tipo: 'erro', texto: msgErro });
     } finally {
       setLoading(false);
     }
@@ -55,12 +72,12 @@ export default function CadastroMorador({ onCancelar }: CadastroMoradorProps) {
     <div className="max-w-2xl mx-auto mt-10 p-8 bg-white rounded-2xl shadow-md border border-slate-100">
       <div className="mb-6">
         <h2 className="text-2xl font-bold text-slate-800">Adicionar Novo Morador</h2>
-        <p className="text-sm text-slate-500">Registre um novo morador e atribua-o a uma unidade residencial.</p>
+        <p className="text-sm text-slate-500">Registre um morador vinculando-o ao ID de um apartamento existente.</p>
       </div>
 
       {mensagem.texto && (
-        <div className={`p-4 mb-6 rounded-xl text-sm font-medium ${
-          mensagem.tipo === 'sucesso' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
+        <div className={`p-4 mb-6 rounded-xl text-sm font-medium text-center ${
+          mensagem.tipo === 'sucesso' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-rose-50 text-rose-700 border border-rose-100'
         }`}>
           {mensagem.texto}
         </div>
@@ -75,52 +92,65 @@ export default function CadastroMorador({ onCancelar }: CadastroMoradorProps) {
             required
             value={form.nome}
             onChange={handleChange}
-            placeholder="Ex: Marco Beltrão"
-            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
+            placeholder="Ex: Miguel Nazário"
+            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all"
           />
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Bloco</label>
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">CPF</label>
             <input
               type="text"
-              name="bloco"
+              name="cpf"
               required
-              value={form.bloco}
+              value={form.cpf}
               onChange={handleChange}
-              placeholder="Ex: A"
-              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
+              placeholder="000.000.000-00"
+              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Unidade / Apartamento</label>
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Telefone</label>
             <input
               type="text"
-              name="apartamento"
+              name="telefone"
               required
-              value={form.apartamento}
+              value={form.telefone}
               onChange={handleChange}
-              placeholder="Ex: 102"
-              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
+              placeholder="(43) 99999-9999"
+              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all"
             />
           </div>
         </div>
 
-        <div>
-          <label className="block text-sm font-semibold text-slate-700 mb-1.5">Tipo</label>
-          <select
-            name="tipo"
-            required
-            value={form.tipo}
-            onChange={handleChange}
-            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all appearance-none"
-          >
-            <option value="" disabled>Selecione o tipo de morador</option>
-            <option value="Proprietario">Proprietário</option>
-            <option value="Inquilino">Inquilino</option>
-          </select>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Idade</label>
+            <input
+              type="number"
+              name="idade"
+              required
+              value={form.idade}
+              onChange={handleChange}
+              placeholder="Ex: 20"
+              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">ID do Apartamento (Existente no Banco)</label>
+            <input
+              type="number"
+              name="apartamentoId"
+              required
+              value={form.apartamentoId}
+              onChange={handleChange}
+              placeholder="Ex: 1"
+              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all"
+            />
+          </div>
         </div>
 
         <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
