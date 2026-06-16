@@ -127,7 +127,9 @@ export default function ListaMoradores({ onAdicionarMorador, onEditarMorador }: 
                 moradores.map((morador) => (
                   <tr key={morador.id} className="hover:bg-slate-50/50 transition-colors">
                     <td className="py-4 px-6 font-medium text-slate-800">
-                      {typeof morador.bloco === 'object' && morador.bloco !== null ? (morador.bloco as Bloco).nome : (morador.bloco as string) || '-'}
+                      {typeof morador.apartamento === 'object' && morador.apartamento?.bloco
+                        ? morador.apartamento.bloco.nome
+                        : '-'}
                     </td>
                     <td className="py-4 px-6">
                       {typeof morador.apartamento === 'object' && morador.apartamento !== null ? (morador.apartamento as Apartamento).numero : (morador.apartamento as string) || '-'}

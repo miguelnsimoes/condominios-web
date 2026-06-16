@@ -7,8 +7,6 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ abaAtiva, setAbaAtiva, onSair }: SidebarProps) {
-  // Simulando a role diretamente para visualização (no futuro você pode decodificar o JWT)
-  // Por padrão, deixamos visível se for ADM
   const isAdm = true; 
 
   const menus = [
@@ -43,7 +41,7 @@ export default function Sidebar({ abaAtiva, setAbaAtiva, onSair }: SidebarProps)
             </button>
           ))}
 
-          {/* ABA EXCLUSIVA DO ADM */}
+          {/* NOME DA ABA ATUALIZADO */}
           {isAdm && (
             <button
               onClick={() => setAbaAtiva('estrutura')}
@@ -54,7 +52,7 @@ export default function Sidebar({ abaAtiva, setAbaAtiva, onSair }: SidebarProps)
               }`}
             >
               <span className="text-base">⚙️</span>
-              Estrutura (ADM)
+              Blocos e Apartamentos
             </button>
           )}
         </nav>
