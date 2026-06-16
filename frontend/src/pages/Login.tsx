@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import api from '../services/api';
+import { saveSession } from '../services/auth';
 
 interface LoginProps {
-  onEntrar: () => void;
+  onEntrar: (role: string) => void;
   onIrParaCadastro: () => void;
 }
 
@@ -24,10 +25,16 @@ export default function Login({ onEntrar, onIrParaCadastro }: LoginProps) {
       });
 
       const token = response.data.token;
-      
+
       if (token) {
-        localStorage.setItem('@CondoManager:token', token);
-        onEntrar();
+        const role = saveSession(token, response.data.role);
+
+        if (!role) {
+          setErro('Nao foi possivel identificar seu nivel de acesso. Reinicie o backend e tente novamente.');
+          return;
+        }
+
+        onEntrar(role);
       } else {
         setErro('Token não recebido do servidor.');
       }
