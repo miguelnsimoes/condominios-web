@@ -9,14 +9,12 @@ import Login from './pages/Login';
 import CadastroUsuario from './pages/CadastroUsuario';
 
 type TelaAutenticacao = 'login' | 'cadastro_usuario' | 'sistema';
-type SubTelaMoradores = 'lista' | 'cadastro' | 'estrutura';
+type SubTelaMoradores = 'lista' | 'cadastro';
 
 function App() {
   const [telaPrincipal, setTelaPrincipal] = useState<TelaAutenticacao>('login');
   const [abaAtiva, setAbaAtiva] = useState<string>('unidades');
   const [subTelaMoradores, setSubTelaMoradores] = useState<SubTelaMoradores>('lista');
-  
-  // Estado para armazenar o morador que será editado
   const [moradorParaEdicao, setMoradorParaEdicao] = useState<any | null>(null);
 
   const handleLogout = () => {
@@ -26,11 +24,6 @@ function App() {
 
   const handleIniciarEdicao = (morador: any) => {
     setMoradorParaEdicao(morador);
-    setSubTelaMoradores('cadastro');
-  };
-
-  const handleIniciarNovoCadastro = () => {
-    setMoradorParaEdicao(null);
     setSubTelaMoradores('cadastro');
   };
 
@@ -56,10 +49,7 @@ function App() {
     <div className="flex bg-slate-50 min-h-screen font-sans antialiased">
       <Sidebar 
         abaAtiva={abaAtiva} 
-        setAbaAtiva={(aba) => {
-          setAbaAtiva(aba);
-          if (aba === 'unidades') setSubTelaMoradores('lista');
-        }} 
+        setAbaAtiva={(aba) => setAbaAtiva(aba)} 
         onSair={handleLogout}
       />
 
@@ -69,15 +59,15 @@ function App() {
         <main className="flex-1 p-8 overflow-y-auto">
           {abaAtiva === 'unidades' && (
             <>
-              {subTelaMoradores === 'lista' && (
+              {subTelaMoradores === 'lista' ? (
                 <ListaMoradores 
-                  onAdicionarMorador={handleIniciarNovoCadastro} 
-                  onGerenciarEstrutura={() => setSubTelaMoradores('estrutura')}
+                  onAdicionarMorador={() => {
+                    setMoradorParaEdicao(null);
+                    setSubTelaMoradores('cadastro');
+                  }} 
                   onEditarMorador={handleIniciarEdicao}
                 />
-              )}
-              
-              {subTelaMoradores === 'cadastro' && (
+              ) : (
                 <CadastroMorador 
                   moradorExistente={moradorParaEdicao}
                   onCancelar={() => {
@@ -86,12 +76,10 @@ function App() {
                   }} 
                 />
               )}
-
-              {subTelaMoradores === 'estrutura' && (
-                <CadastroEstrutura onVoltar={() => setSubTelaMoradores('lista')} />
-              )}
             </>
           )}
+
+          {abaAtiva === 'estrutura' && <CadastroEstrutura />}
 
           {abaAtiva === 'reservas' && <Reservas />}
 

@@ -6,48 +6,49 @@ interface Bloco {
   nome: string;
 }
 
-interface CadastroEstruturaProps {
-  onVoltar: () => void;
+interface Apartamento {
+  id: number;
+  numero: string;
+  bloco?: Bloco;
 }
 
-export default function CadastroEstrutura({ onVoltar }: CadastroEstruturaProps) {
-  // Estados para os Blocos Existentes
+export default function CadastroEstrutura() {
   const [blocos, setBlocos] = useState<Bloco[]>([]);
+  const [apartamentos, setApartamentos] = useState<Apartamento[]>([]);
   const [loadingList, setLoadingList] = useState(true);
 
-  // Estados para o formulário de Bloco
+  // Estados dos formulários
   const [nomeBloco, setNomeBloco] = useState('');
+  const [blocoEmEdicao, setBlocoEmEdicao] = useState<Bloco | null>(null);
   const [loadingBloco, setLoadingBloco] = useState(false);
 
-  // Estados para o formulário de Apartamento
   const [numeroApto, setNumeroApto] = useState('');
   const [blocoIdApto, setBlocoIdApto] = useState('');
   const [loadingApto, setLoadingApto] = useState(false);
 
-  // Mensagens de feedback
+  // Mensagens
   const [msgBloco, setMsgBloco] = useState({ tipo: '', texto: '' });
   const [msgApto, setMsgApto] = useState({ tipo: '', texto: '' });
 
-  // Função para buscar os blocos reais da API
-  async function carregarBlocos() {
+  async function carregarDados() {
     try {
       setLoadingList(true);
-      const response = await api.get('/blocos');
-      if (response.data && Array.isArray(response.data)) {
-        setBlocos(response.data);
-      } else if (response.data && Array.isArray(response.data.content)) {
-        setBlocos(response.data.content);
-      }
+      const [resBlocos, resAptos] = await Promise.all([
+        api.get('/blocos'),
+        api.get('/apartamentos')
+      ]);
+
+      setBlocos(Array.isArray(resBlocos.data) ? resBlocos.data : resBlocos.data.content || []);
+      setApartamentos(Array.isArray(resAptos.data) ? resAptos.data : resAptos.data.content || []);
     } catch (error) {
-      console.error("Erro ao carregar lista de blocos:", error);
+      console.error("Erro ao carregar dados da estrutura:", error);
     } finally {
       setLoadingList(false);
     }
   }
 
-  // Carrega a lista assim que o componente entra na tela
   useEffect(() => {
-    carregarBlocos();
+    carregarDados();
   }, []);
 
   const handleSalvarBloco = async (e: React.FormEvent) => {
@@ -56,17 +57,30 @@ export default function CadastroEstrutura({ onVoltar }: CadastroEstruturaProps) 
     setMsgBloco({ tipo: '', texto: '' });
 
     try {
-      await api.post('/blocos', { nome: nomeBloco });
-      setMsgBloco({ tipo: 'sucesso', texto: 'Bloco cadastrado com sucesso! 🎉' });
+      if (blocoEmEdicao) {
+        await api.put(`/blocos/${blocoEmEdicao.id}`, { nome: nomeBloco });
+        setMsgBloco({ tipo: 'sucesso', texto: 'Bloco atualizado! ✏️' });
+        setBlocoEmEdicao(null);
+      } else {
+        await api.post('/blocos', { nome: nomeBloco });
+        setMsgBloco({ tipo: 'sucesso', texto: 'Bloco criado! 🎉' });
+      }
       setNomeBloco('');
-      
-      // Recarrega a lista para o ID novo aparecer instantaneamente na tela
-      carregarBlocos();
-    } catch (error: any) {
-      console.error(error);
-      setMsgBloco({ tipo: 'erro', texto: 'Erro ao salvar bloco. Verifique as permissões de ADM.' });
+      carregarDados();
+    } catch (error) {
+      setMsgBloco({ tipo: 'erro', texto: 'Erro ao processar bloco.' });
     } finally {
       setLoadingBloco(false);
+    }
+  };
+
+  const handleDeletarBloco = async (id: number, nome: string) => {
+    if (!window.confirm(`Excluir o ${nome}?`)) return;
+    try {
+      await api.delete(`/blocos/${id}`);
+      carregarDados();
+    } catch (error) {
+      setMsgBloco({ tipo: 'erro', texto: 'Erro ao excluir bloco.' });
     }
   };
 
@@ -78,165 +92,103 @@ export default function CadastroEstrutura({ onVoltar }: CadastroEstruturaProps) 
     try {
       await api.post('/apartamentos', {
         numero: numeroApto,
-        bloco: {
-          id: Number(blocoIdApto)
-        }
+        bloco: { id: Number(blocoIdApto) }
       });
-      setMsgApto({ tipo: 'sucesso', texto: 'Apartamento cadastrado com sucesso! 🏢' });
+      setMsgApto({ tipo: 'sucesso', texto: 'Unidade criada! 🏢' });
       setNumeroApto('');
       setBlocoIdApto('');
-    } catch (error: any) {
-      console.error(error);
-      setMsgApto({ tipo: 'erro', texto: 'Erro ao salvar apartamento. Verifique se o ID do bloco existe.' });
+      carregarDados();
+    } catch (error) {
+      setMsgApto({ tipo: 'erro', texto: 'Erro ao salvar unidade.' });
     } finally {
       setLoadingApto(false);
     }
   };
 
+  const handleDeletarApartamento = async (id: number, numero: string) => {
+    if (!window.confirm(`Excluir o apartamento ${numero}?`)) return;
+    try {
+      await api.delete(`/apartamentos/${id}`);
+      carregarDados();
+    } catch (error) {
+      setMsgApto({ tipo: 'erro', texto: 'Erro ao excluir apartamento.' });
+    }
+  };
+
   return (
-    <div className="space-y-8 max-w-5xl mx-auto mt-6">
-      <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-800">Configurar Estrutura do Condomínio</h2>
-          <p className="text-sm text-slate-500">Área restrita para administradores criarem novos blocos e unidades.</p>
-        </div>
-        <button
-          onClick={onVoltar}
-          className="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
-        >
-          ← Voltar para Lista
-        </button>
+    <div className="space-y-8 max-w-7xl mx-auto">
+      <div>
+        <h2 className="text-2xl font-bold text-slate-800">Configurar Estrutura Organizacional</h2>
+        <p className="text-sm text-slate-500">Crie, edite e visualize os blocos e os IDs dos apartamentos para vinculação.</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
-        {/* COLUNA 1: CADASTRO DE BLOCO */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 space-y-6">
+      {/* LINHA 1: BLOCOS */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 h-fit">
           <form onSubmit={handleSalvarBloco} className="space-y-4">
-            <div>
-              <h3 className="text-lg font-bold text-slate-800">1. Cadastrar Novo Bloco</h3>
-              <p className="text-xs text-slate-400">Crie as divisões principais do condomínio.</p>
-            </div>
-
-            {msgBloco.texto && (
-              <div className={`p-3 rounded-xl text-xs font-medium text-center ${
-                msgBloco.tipo === 'sucesso' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-rose-50 text-rose-700 border border-rose-100'
-              }`}>
-                {msgBloco.texto}
-              </div>
-            )}
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Nome do Bloco</label>
-              <input
-                type="text"
-                required
-                value={nomeBloco}
-                onChange={(e) => setNomeBloco(e.target.value)}
-                placeholder="Ex: Bloco A, Torre Norte"
-                className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-slate-900 focus:outline-hidden"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loadingBloco}
-              className="w-full py-2 bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold rounded-xl disabled:bg-slate-400 transition-colors"
-            >
-              {loadingBloco ? 'Salvando...' : 'Criar Bloco'}
-            </button>
+            <h3 className="text-lg font-bold text-slate-800">{blocoEmEdicao ? 'Editar Bloco' : '1. Novo Bloco'}</h3>
+            {msgBloco.texto && <div className="p-3 text-xs font-medium rounded-xl text-center bg-slate-50">{msgBloco.texto}</div>}
+            <input type="text" required value={nomeBloco} onChange={(e) => setNomeBloco(e.target.value)} placeholder="Ex: Bloco A" className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm" />
+            <button type="submit" className="w-full py-2 bg-slate-900 text-white text-sm font-semibold rounded-xl">{loadingBloco ? '...' : 'Salvar Bloco'}</button>
           </form>
         </div>
 
-        {/* COLUNA 2: LISTA DE BLOCOS EXISTENTES (A COLA QUE VOCÊ PRECISA) */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 space-y-4">
-          <div>
-            <h3 className="text-lg font-bold text-slate-800">Blocos Registrados</h3>
-            <p className="text-xs text-slate-400">Consulte o ID do bloco para criar as unidades ao lado.</p>
-          </div>
-
-          <div className="border border-slate-100 rounded-xl overflow-hidden max-h-[220px] overflow-y-auto">
-            <table className="w-full text-left border-collapse text-sm">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-100 text-xs font-bold text-slate-400 uppercase tracking-wider">
-                  <th className="p-3 pl-4">ID de Cópia</th>
-                  <th className="p-3">Nome do Bloco</th>
-                </tr>
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 md:col-span-2 space-y-4">
+          <h3 className="text-lg font-bold text-slate-800">Blocos Cadastrados</h3>
+          <div className="border border-slate-100 rounded-xl overflow-hidden max-h-[200px] overflow-y-auto">
+            <table className="w-full text-sm text-left">
+              <thead className="bg-slate-50 text-xs font-bold text-slate-400 uppercase">
+                <tr><th className="p-3 pl-4 text-center w-20">ID</th><th className="p-3">Nome</th><th className="p-3 text-right pr-4">Ações</th></tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 text-slate-700">
-                {loadingList ? (
-                  <tr>
-                    <td colSpan={2} className="p-4 text-center text-xs text-slate-400">Carregando...</td>
+              <tbody className="divide-y divide-slate-100">
+                {blocos.map(b => (
+                  <tr key={b.id}>
+                    <td className="p-3 font-mono font-bold text-blue-600 bg-blue-50/20 text-center">{b.id}</td>
+                    <td className="p-3 font-medium text-slate-800">{b.nome}</td>
+                    <td className="p-3 text-right pr-4 space-x-2">
+                      <button onClick={() => { setBlocoEmEdicao(b); setNomeBloco(b.nome); }}>✏️</button>
+                      <button onClick={() => handleDeletarBloco(b.id, b.nome)}>🗑️</button>
+                    </td>
                   </tr>
-                ) : blocos.length === 0 ? (
-                  <tr>
-                    <td colSpan={2} className="p-4 text-center text-xs text-slate-400">Nenhum bloco no banco.</td>
-                  </tr>
-                ) : (
-                  blocos.map((b) => (
-                    <tr key={b.id} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="p-3 pl-4 font-mono font-bold text-blue-600 bg-blue-50/30 w-24 text-center">
-                        {b.id}
-                      </td>
-                      <td className="p-3 font-medium text-slate-800">{b.nome}</td>
-                    </tr>
-                  ))
-                )}
+                ))}
               </tbody>
             </table>
           </div>
         </div>
+      </div>
 
-        {/* COLUNA 3: CADASTRO DE APARTAMENTO */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+      {/* LINHA 2: APARTAMENTOS */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-4 border-t border-slate-100">
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 h-fit">
           <form onSubmit={handleSalvarApartamento} className="space-y-4">
-            <div>
-              <h3 className="text-lg font-bold text-slate-800">2. Criar Unidade</h3>
-              <p className="text-xs text-slate-400">Atribua uma moradia ao bloco correspondente.</p>
-            </div>
-
-            {msgApto.texto && (
-              <div className={`p-3 rounded-xl text-xs font-medium text-center ${
-                msgApto.tipo === 'sucesso' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-rose-50 text-rose-700 border border-rose-100'
-              }`}>
-                {msgApto.texto}
-              </div>
-            )}
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Número do Apartamento</label>
-              <input
-                type="text"
-                required
-                value={numeroApto}
-                onChange={(e) => setNumeroApto(e.target.value)}
-                placeholder="Ex: 101, 12, 44"
-                className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-slate-900 focus:outline-hidden"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">ID do Bloco Pertencente (Olhe no painel ao lado)</label>
-              <input
-                type="number"
-                required
-                value={blocoIdApto}
-                onChange={(e) => setBlocoIdApto(e.target.value)}
-                placeholder="Insira o ID destacado em azul"
-                className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-slate-900 focus:outline-hidden"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loadingApto}
-              className="w-full py-2 bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold rounded-xl disabled:bg-slate-400 transition-colors"
-            >
-              {loadingApto ? 'Salvando...' : 'Criar Unidade'}
-            </button>
+            <h3 className="text-lg font-bold text-slate-800">2. Nova Unidade</h3>
+            {msgApto.texto && <div className="p-3 text-xs font-medium rounded-xl text-center bg-slate-50">{msgApto.texto}</div>}
+            <input type="text" required value={numeroApto} onChange={(e) => setNumeroApto(e.target.value)} placeholder="Número (Ex: 12)" className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm" />
+            <input type="number" required value={blocoIdApto} onChange={(e) => setBlocoIdApto(e.target.value)} placeholder="ID do Bloco acima" className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm" />
+            <button type="submit" className="w-full py-2 bg-slate-900 text-white text-sm font-semibold rounded-xl">Criar Unidade</button>
           </form>
         </div>
 
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 md:col-span-2 space-y-4">
+          <h3 className="text-lg font-bold text-slate-800">Unidades Disponíveis (IDs para Vínculo de Morador)</h3>
+          <div className="border border-slate-100 rounded-xl overflow-hidden max-h-[220px] overflow-y-auto">
+            <table className="w-full text-sm text-left">
+              <thead className="bg-slate-50 text-xs font-bold text-slate-400 uppercase">
+                <tr><th className="p-3 pl-4 text-center w-24">ID Morador</th><th className="p-3">Nº Apartamento</th><th className="p-3">Bloco</th><th className="p-3 text-right pr-4">Ações</th></tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {apartamentos.map(a => (
+                  <tr key={a.id} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="p-3 font-mono font-bold text-emerald-600 bg-emerald-50/20 text-center">{a.id}</td>
+                    <td className="p-3 font-medium text-slate-800">Apto {a.numero}</td>
+                    <td className="p-3 text-slate-500 text-xs font-semibold">{a.bloco?.nome || 'Sem Bloco'}</td>
+                    <td className="p-3 text-right pr-4"><button onClick={() => handleDeletarApartamento(a.id, a.numero)}>🗑️</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
   );

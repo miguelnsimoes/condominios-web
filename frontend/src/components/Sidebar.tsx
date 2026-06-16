@@ -1,44 +1,74 @@
 import React from 'react';
 
-export default function Sidebar() {
-  const menuItems = [
-    { label: 'Painel Geral', active: false },
-    { label: 'Unidades', active: true },
-    { label: 'Portaria', active: false },
-    { label: 'Reservas', active: false },
-    { label: 'Financeiro', active: false },
+interface SidebarProps {
+  abaAtiva: string;
+  setAbaAtiva: (aba: string) => void;
+  onSair: () => void;
+}
+
+export default function Sidebar({ abaAtiva, setAbaAtiva, onSair }: SidebarProps) {
+  // Simulando a role diretamente para visualização (no futuro você pode decodificar o JWT)
+  // Por padrão, deixamos visível se for ADM
+  const isAdm = true; 
+
+  const menus = [
+    { id: 'painel', nome: 'Painel Geral', icone: '📊' },
+    { id: 'unidades', nome: 'Unidades', icone: '🏢' },
+    { id: 'portaria', nome: 'Portaria', icone: '📦' },
+    { id: 'reservas', nome: 'Reservas', icone: '📅' },
+    { id: 'financeiro', nome: 'Financeiro', icone: '💰' },
   ];
 
   return (
-    <div className="w-64 bg-[#1e2538] text-slate-400 flex flex-col justify-between p-4 min-h-screen">
-      <div>
-        <div className="mb-10 px-2 pt-4">
-          <h1 className="text-xl font-bold text-white tracking-wide">Portal do Morador</h1>
-          <p className="text-xs text-slate-500">Acesso Administrador</p>
+    <div className="w-64 bg-slate-900 text-slate-300 flex flex-col justify-between p-4 border-r border-slate-800">
+      <div className="space-y-8">
+        <div className="px-2 py-4">
+          <h1 className="text-xl font-black text-white tracking-tight">Portal do Morador</h1>
+          <p className="text-xs text-slate-500 font-semibold mt-1">Acesso Administrativo</p>
         </div>
 
         <nav className="space-y-1">
-          {menuItems.map((item, index) => (
+          {menus.map((menu) => (
             <button
-              key={index}
-              className={`w-full text-left px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
-                item.active
-                  ? 'bg-[#2b344d] text-white'
-                  : 'hover:bg-[#252d44] hover:text-slate-200'
+              key={menu.id}
+              onClick={() => setAbaAtiva(menu.id)}
+              className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-xl transition-all ${
+                abaAtiva === menu.id
+                  ? 'bg-slate-800 text-white shadow-xs'
+                  : 'hover:bg-slate-800/50 hover:text-slate-200'
               }`}
             >
-              {item.label}
+              <span className="text-base">{menu.icone}</span>
+              {menu.nome}
             </button>
           ))}
+
+          {/* ABA EXCLUSIVA DO ADM */}
+          {isAdm && (
+            <button
+              onClick={() => setAbaAtiva('estrutura')}
+              className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-xl transition-all border border-dashed ${
+                abaAtiva === 'estrutura'
+                  ? 'bg-blue-950/40 text-blue-400 border-blue-800/60'
+                  : 'border-slate-800/60 text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
+              }`}
+            >
+              <span className="text-base">⚙️</span>
+              Estrutura (ADM)
+            </button>
+          )}
         </nav>
       </div>
 
-      <div className="space-y-1 border-t border-slate-700/50 pt-4">
-        <button className="w-full text-left px-4 py-3 rounded-xl text-sm font-medium hover:bg-[#252d44] hover:text-slate-200">
-          Suporte
+      <div className="space-y-2 border-t border-slate-800 pt-4">
+        <button className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-semibold text-slate-500 hover:text-slate-300 transition-colors">
+          🛠️ Suporte
         </button>
-        <button className="w-full text-left px-4 py-3 rounded-xl text-sm font-medium hover:bg-rose-950/30 hover:text-rose-400">
-          Sair
+        <button
+          onClick={onSair}
+          className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-semibold text-rose-400 hover:bg-rose-950/20 rounded-xl transition-colors"
+        >
+          🚪 Sair
         </button>
       </div>
     </div>
