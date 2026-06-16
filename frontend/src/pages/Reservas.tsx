@@ -63,9 +63,9 @@ function areaEmUso(areaId: number, reservas: ReservaArea[]) {
   const agora = new Date().toTimeString().slice(0, 5);
 
   return reservas.some((reserva) => {
-    if (reserva.areaComum.id !== areaId || reserva.data !== hoje) return false;
-    const inicio = reserva.horaInicio.slice(0, 5);
-    const fim = reserva.horaFim.slice(0, 5);
+    if (!reserva.areaComum || reserva.areaComum.id !== areaId || reserva.data !== hoje) return false;
+    const inicio = reserva.horaInicio?.slice(0, 5) || '00:00';
+    const fim = reserva.horaFim?.slice(0, 5) || '00:00';
     return agora >= inicio && agora < fim;
   });
 }
@@ -91,18 +91,20 @@ export default function Reservas() {
     try {
       setLoading(true);
       setErro('');
+      
+      // Alterado de /reservas-de-area/proximas para /reservas-de-area
       const [resAreas, resMoradores, resReservas] = await Promise.all([
         api.get('/areas-comuns'),
         api.get('/moradores'),
-        api.get('/reservas-de-area/proximas'),
+        api.get('/reservas-de-area'), 
       ]);
 
-      setAreas(Array.isArray(resAreas.data) ? resAreas.data : []);
+      setAreas(Array.isArray(resAreas.data) ? resAreas.data : resAreas.data?.content ?? []);
       setMoradores(Array.isArray(resMoradores.data) ? resMoradores.data : resMoradores.data?.content ?? []);
-      setReservas(Array.isArray(resReservas.data) ? resReservas.data : []);
+      setReservas(Array.isArray(resReservas.data) ? resReservas.data : resReservas.data?.content ?? []);
     } catch (err) {
-      console.error(err);
-      setErro('Nao foi possivel carregar os dados de reservas.');
+      console.error("Erro no carregamento de reservas:", err);
+      setErro('Nao foi possivel carregar os dados de reservas do servidor.');
     } finally {
       setLoading(false);
     }
@@ -135,22 +137,25 @@ export default function Reservas() {
     setErro('');
     setSucesso('');
 
+    // Adiciona segundos ":00" para evitar rejeição do LocalTime no Jackson
+    const horaInicioFormatada = form.horaInicio.length === 5 ? `${form.horaInicio}:00` : form.horaInicio;
+    const horaFimFormatada = form.horaFim.length === 5 ? `${form.horaFim}:00` : form.horaFim;
+
     try {
       await api.post('/reservas-de-area', {
         data: form.data,
-        horaInicio: form.horaInicio,
-        horaFim: form.horaFim,
+        horaInicio: horaInicioFormatada,
+        horaFim: horaFimFormatada,
         areaComum: { id: Number(form.areaComumId) },
         morador: { id: Number(form.moradorId) },
       });
 
-      setSucesso('Reserva confirmada com sucesso.');
+      setSucesso('Reserva confirmada com sucesso! 🎉');
       setForm({ areaComumId: '', moradorId: '', data: '', horaInicio: '', horaFim: '' });
       carregarDados();
-    } catch (err: unknown) {
-      const mensagem =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        'Erro ao criar reserva. Verifique se o horario esta disponivel.';
+    } catch (err: any) {
+      console.error(err);
+      const mensagem = err.response?.data?.message || 'Erro ao criar reserva. Verifique a disponibilidade do horario.';
       setErro(mensagem);
     } finally {
       setSalvando(false);
@@ -163,7 +168,7 @@ export default function Reservas() {
     try {
       setErro('');
       await api.delete(`/reservas-de-area/${id}`);
-      setSucesso('Reserva cancelada.');
+      setSucesso('Reserva cancelada com sucesso.');
       carregarDados();
     } catch (err) {
       console.error(err);
@@ -207,7 +212,7 @@ export default function Reservas() {
             >
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center text-sm font-bold text-slate-600">
-                  {area.nome.slice(0, 2).toUpperCase()}
+                  {area.nome ? area.nome.slice(0, 2).toUpperCase() : 'AC'}
                 </div>
                 <div>
                   <h4 className="font-semibold text-slate-800 text-sm">{area.nome}</h4>
@@ -291,7 +296,7 @@ export default function Reservas() {
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-xs h-fit">
+        <div className="bg-white p-6 rounded-2xl shadow-xs border border-slate-100 h-fit">
           <h3 className="font-bold text-slate-800 mb-4">Nova Reserva</h3>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -300,7 +305,7 @@ export default function Reservas() {
                 name="areaComumId"
                 value={form.areaComumId}
                 onChange={handleChange}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:outline-hidden"
               >
                 <option value="">Selecione a area</option>
                 {areas.map((area) => (
@@ -317,7 +322,7 @@ export default function Reservas() {
                 name="moradorId"
                 value={form.moradorId}
                 onChange={handleChange}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:outline-hidden"
               >
                 <option value="">Selecione o morador</option>
                 {moradores.map((morador) => (
@@ -336,7 +341,7 @@ export default function Reservas() {
                 value={form.data}
                 onChange={handleChange}
                 min={new Date().toISOString().slice(0, 10)}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:outline-hidden"
               />
             </div>
 
@@ -348,7 +353,7 @@ export default function Reservas() {
                   name="horaInicio"
                   value={form.horaInicio}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:outline-hidden"
                 />
               </div>
               <div>
@@ -358,7 +363,7 @@ export default function Reservas() {
                   name="horaFim"
                   value={form.horaFim}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:outline-hidden"
                 />
               </div>
             </div>
