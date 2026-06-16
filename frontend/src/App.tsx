@@ -15,10 +15,23 @@ function App() {
   const [telaPrincipal, setTelaPrincipal] = useState<TelaAutenticacao>('login');
   const [abaAtiva, setAbaAtiva] = useState<string>('unidades');
   const [subTelaMoradores, setSubTelaMoradores] = useState<SubTelaMoradores>('lista');
+  
+  // Estado para armazenar o morador que será editado
+  const [moradorParaEdicao, setMoradorParaEdicao] = useState<any | null>(null);
 
   const handleLogout = () => {
     localStorage.removeItem('@CondoManager:token');
     setTelaPrincipal('login');
+  };
+
+  const handleIniciarEdicao = (morador: any) => {
+    setMoradorParaEdicao(morador);
+    setSubTelaMoradores('cadastro');
+  };
+
+  const handleIniciarNovoCadastro = () => {
+    setMoradorParaEdicao(null);
+    setSubTelaMoradores('cadastro');
   };
 
   if (telaPrincipal === 'login') {
@@ -58,13 +71,20 @@ function App() {
             <>
               {subTelaMoradores === 'lista' && (
                 <ListaMoradores 
-                  onAdicionarMorador={() => setSubTelaMoradores('cadastro')} 
+                  onAdicionarMorador={handleIniciarNovoCadastro} 
                   onGerenciarEstrutura={() => setSubTelaMoradores('estrutura')}
+                  onEditarMorador={handleIniciarEdicao}
                 />
               )}
               
               {subTelaMoradores === 'cadastro' && (
-                <CadastroMorador onCancelar={() => setSubTelaMoradores('lista')} />
+                <CadastroMorador 
+                  moradorExistente={moradorParaEdicao}
+                  onCancelar={() => {
+                    setMoradorParaEdicao(null);
+                    setSubTelaMoradores('lista');
+                  }} 
+                />
               )}
 
               {subTelaMoradores === 'estrutura' && (

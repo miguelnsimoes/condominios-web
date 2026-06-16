@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import api from '../services/api';
 
 interface MoradorForm {
@@ -11,9 +11,12 @@ interface MoradorForm {
 
 interface CadastroMoradorProps {
   onCancelar: () => void;
+  moradorExistente?: any | null; // Detecta se é fluxo de edição
 }
 
-export default function CadastroMorador({ onCancelar }: CadastroMoradorProps) {
+export default function CadastroMorador({ onCancelar, moradorExistente }: CadastroMoradorProps) {
+  const isEdicao = !!moradorExistente;
+
   const [form, setForm] = useState<MoradorForm>({
     nome: '',
     cpf: '',
@@ -24,6 +27,19 @@ export default function CadastroMorador({ onCancelar }: CadastroMoradorProps) {
 
   const [loading, setLoading] = useState(false);
   const [mensagem, setMensagem] = useState({ tipo: '', texto: '' });
+
+  // Se houver um morador selecionado para edição, preenche o form na hora
+  useEffect(() => {
+    if (moradorExistente) {
+      setForm({
+        nome: moradorExistente.nome || '',
+        cpf: moradorExistente.cpf || '',
+        telefone: moradorExistente.telefone || '',
+        idade: moradorExistente.idade || '',
+        apartamentoId: moradorExistente.apartamento?.id || ''
+      });
+    }
+  }, [moradorExistente]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -38,7 +54,6 @@ export default function CadastroMorador({ onCancelar }: CadastroMoradorProps) {
     setLoading(true);
     setMensagem({ tipo: '', texto: '' });
 
-    // Monta o payload idêntico ao modelo mapeado no seu Hibernate do Spring Boot
     const payload = {
       nome: form.nome,
       cpf: form.cpf,
@@ -50,18 +65,22 @@ export default function CadastroMorador({ onCancelar }: CadastroMoradorProps) {
     };
 
     try {
-      const response = await api.post('/moradores', payload);
-      
-      if (response.status === 201 || response.status === 200) {
+      if (isEdicao) {
+        // Dispara PUT para o endpoint com ID mapeado no seu MoradorController
+        await api.put(`/moradores/${moradorExistente.id}`, payload);
+        setMensagem({ tipo: 'sucesso', texto: 'Dados do morador atualizados com sucesso! ✏️' });
+      } else {
+        // Fluxo de criação normal (POST)
+        await api.post('/moradores', payload);
         setMensagem({ tipo: 'sucesso', texto: 'Morador salvo no banco de dados com sucesso! 🎉' });
-        
-        setTimeout(() => {
-          onCancelar(); // Volta para a listagem atualizada
-        }, 1500);
       }
+      
+      setTimeout(() => {
+        onCancelar(); // Retorna para a lista limpando os estados
+      }, 1500);
     } catch (error: any) {
       console.error(error);
-      const msgErro = error.response?.data?.message || 'Erro ao salvar. Verifique se o ID do apartamento existe no banco.';
+      const msgErro = error.response?.data?.message || 'Erro ao processar requisição. Verifique o ID do apartamento.';
       setMensagem({ tipo: 'erro', texto: msgErro });
     } finally {
       setLoading(false);
@@ -71,8 +90,12 @@ export default function CadastroMorador({ onCancelar }: CadastroMoradorProps) {
   return (
     <div className="max-w-2xl mx-auto mt-10 p-8 bg-white rounded-2xl shadow-md border border-slate-100">
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-slate-800">Adicionar Novo Morador</h2>
-        <p className="text-sm text-slate-500">Registre um morador vinculando-o ao ID de um apartamento existente.</p>
+        <h2 className="text-2xl font-bold text-slate-800">
+          {isEdicao ? 'Editar Cadastro do Morador' : 'Adicionar Novo Morador'}
+        </h2>
+        <p className="text-sm text-slate-500">
+          {isEdicao ? 'Atualize as informações do morador selecionado.' : 'Registre um morador vinculando-o ao ID de um apartamento.'}
+        </p>
       </div>
 
       {mensagem.texto && (
@@ -140,7 +163,7 @@ export default function CadastroMorador({ onCancelar }: CadastroMoradorProps) {
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1.5">ID do Apartamento (Existente no Banco)</label>
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">ID do Apartamento</label>
             <input
               type="number"
               name="apartamentoId"
@@ -166,7 +189,7 @@ export default function CadastroMorador({ onCancelar }: CadastroMoradorProps) {
             disabled={loading}
             className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-400 text-white text-sm font-semibold rounded-xl shadow-xs transition-colors"
           >
-            {loading ? 'Salvando...' : 'Salvar Morador'}
+            {loading ? 'Processando...' : isEdicao ? 'Atualizar Morador' : 'Salvar Morador'}
           </button>
         </div>
       </form>

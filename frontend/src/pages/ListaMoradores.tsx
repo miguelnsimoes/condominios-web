@@ -13,8 +13,11 @@ interface Apartamento {
 }
 
 interface Morador {
-  id?: number;
+  id: number; // Obrigatório para podermos deletar/editar
   nome: string;
+  cpf: string;
+  telefone: string;
+  idade: number;
   bloco: string | Bloco;
   apartamento: string | Apartamento;
   tipo: string;
@@ -23,37 +26,57 @@ interface Morador {
 interface ListaMoradoresProps {
   onAdicionarMorador: () => void;
   onGerenciarEstrutura: () => void;
+  onEditarMorador: (morador: Morador) => void;
 }
 
-export default function ListaMoradores({ onAdicionarMorador, onGerenciarEstrutura }: ListaMoradoresProps) {
+export default function ListaMoradores({ onAdicionarMorador, onGerenciarEstrutura, onEditarMorador }: ListaMoradoresProps) {
   const [moradores, setMoradores] = useState<Morador[]>([]);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState('');
+  
+  // Estado para controlar qual menu flutuante de ações está aberto (baseado no ID)
+  const [menuAbertoId, setMenuAbertoId] = useState<number | null>(null);
+
+  async function buscarMoradores() {
+    try {
+      setLoading(true);
+      setErro('');
+      const response = await api.get('/moradores');
+      
+      if (response.data && Array.isArray(response.data)) {
+        setMoradores(response.data);
+      } else if (response.data && Array.isArray(response.data.content)) {
+        setMoradores(response.data.content);
+      } else {
+        setMoradores([]);
+      }
+    } catch (err: any) {
+      console.error("Erro na requisição de moradores:", err);
+      setErro('Não foi possível carregar os moradores do servidor.');
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    async function buscarMoradores() {
-      try {
-        setLoading(true);
-        setErro('');
-        const response = await api.get('/moradores');
-        
-        if (response.data && Array.isArray(response.data)) {
-          setMoradores(response.data);
-        } else if (response.data && Array.isArray(response.data.content)) {
-          setMoradores(response.data.content);
-        } else {
-          setMoradores([]);
-        }
-      } catch (err: any) {
-        console.error("Erro na requisição de moradores:", err);
-        setErro('Não foi possível carregar os moradores do servidor.');
-      } finally {
-        setLoading(false);
-      }
-    }
-
     buscarMoradores();
   }, []);
+
+  const handleDeletarMorador = async (id: number, nome: string) => {
+    if (!window.confirm(`Tem certeza que deseja remover o morador ${nome}?`)) {
+      return;
+    }
+
+    try {
+      await api.delete(`/moradores/${id}`);
+      setMenuAbertoId(null);
+      // Atualiza a lista instantaneamente após apagar
+      buscarMoradores();
+    } catch (err: any) {
+      console.error(err);
+      setErro('Erro ao tentar remover o morador do banco de dados.');
+    }
+  };
 
   const getIniciais = (nome: string) => {
     if (!nome) return 'M';
@@ -97,7 +120,7 @@ export default function ListaMoradores({ onAdicionarMorador, onGerenciarEstrutur
 
       <div className="bg-white border border-slate-100 rounded-2xl shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full text-left border-collapse border-spacing-0">
             <thead>
               <tr className="border-b border-slate-100 text-xs font-bold text-slate-400 uppercase tracking-wider bg-slate-50/70">
                 <th className="py-4 px-6">Bloco</th>
@@ -146,18 +169,46 @@ export default function ListaMoradores({ onAdicionarMorador, onGerenciarEstrutur
                     </td>
 
                     <td className="py-4 px-6">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
-                        morador.tipo === 'Proprietario' 
-                          ? 'bg-emerald-50 text-emerald-700' 
-                          : 'bg-blue-50 text-blue-700'
-                      }`}>
-                        {morador.tipo === 'Proprietario' ? 'Proprietário' : 'Inquilino'}
+                      <span className="px-2.5 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-semibold">
+                        Inquilino
                       </span>
                     </td>
 
-                    <td className="py-4 px-6 text-right text-slate-400 hover:text-slate-600 cursor-pointer font-bold">
-                      •••
+                    {/* COLUNA DE AÇÕES COM DROPDOWN FLUTUANTE */}
+                    <td className="py-4 px-6 text-right relative">
+                      <button 
+                        onClick={() => setMenuAbertoId(menuAbertoId === morador.id ? null : morador.id)}
+                        className="text-slate-400 hover:text-slate-600 font-bold px-2 py-1 rounded-lg hover:bg-slate-100 transition-colors"
+                      >
+                        •••
+                      </button>
+
+                      {menuAbertoId === morador.id && (
+                        <>
+                          {/* Backdrop invisível para fechar o menu ao clicar fora */}
+                          <div className="fixed inset-0 z-10" onClick={() => setMenuAbertoId(null)}></div>
+                          
+                          <div className="absolute right-6 top-12 w-36 bg-white border border-slate-100 rounded-xl shadow-lg py-1.5 z-20 animate-in fade-in slide-in-from-top-1 duration-100 text-left">
+                            <button
+                              onClick={() => {
+                                setMenuAbertoId(null);
+                                onEditarMorador(morador);
+                              }}
+                              className="w-full px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition-colors"
+                            >
+                              ✏️ Editar
+                            </button>
+                            <button
+                              onClick={() => handleDeletarMorador(morador.id, morador.nome)}
+                              className="w-full px-4 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 flex items-center gap-2 transition-colors border-t border-slate-50"
+                            >
+                              🗑️ Apagar
+                            </button>
+                          </div>
+                        </>
+                      )}
                     </td>
+
                   </tr>
                 ))
               )}
