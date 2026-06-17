@@ -7,7 +7,7 @@ import CadastroEstrutura from './pages/CadastroEstrutura';
 import EspacosReserva from './pages/EspacosReserva';
 import Reservas from './pages/Reservas';
 import Portaria from './pages/Portaria';
-import Financeiro from './pages/Financeiro'; // <-- NOVO IMPORT ADICIONADO
+import Financeiro from './pages/Financeiro';
 import Login from './pages/Login';
 import CadastroUsuario from './pages/CadastroUsuario';
 import { clearSession, getStoredToken, getUserRole, isAdm } from './services/auth';
@@ -25,7 +25,7 @@ function App() {
   const [userRole, setUserRole] = useState<string>(() => getUserRole());
 
   const userIsAdm = isAdm(userRole);
-  const abasAdm = ['estrutura', 'espacos-reserva', 'registrar-encomenda'];
+  const abasAdm = ['estrutura', 'espacos-reserva', 'registrar-encomenda', 'registrar-financeiro'];
 
   useEffect(() => {
     if (getStoredToken()) {
@@ -113,14 +113,15 @@ function App() {
 
           {abaAtiva === 'reservas' && <Reservas />}
 
-          {/* VISTA DO MORADOR: Apenas consulta filtrada */}
           {abaAtiva === 'portaria' && <Portaria mode="view" />}
 
-          {/* VISTA DO ADM: Painel de gerenciamento completo */}
           {abaAtiva === 'registrar-encomenda' && userIsAdm && <Portaria mode="admin" />}
 
-          {/* NOVO COMPONENTE FINANCEIRO */}
-          {abaAtiva === 'financeiro' && <Financeiro />}
+          {/* VISTA DO MORADOR: Apenas consulta suas cobranças vinculadas */}
+          {abaAtiva === 'financeiro' && <Financeiro mode="view" />}
+
+          {/* VISTA DO ADM: Painel completo de modificação e lançamento de taxas extras */}
+          {abaAtiva === 'registrar-financeiro' && userIsAdm && <Financeiro mode="admin" />}
 
           {abaAtiva === 'painel' && (
             <div className="p-6 bg-white rounded-2xl border border-slate-100 shadow-xs">
@@ -128,7 +129,6 @@ function App() {
               <p className="text-sm text-slate-500 mt-1">Módulo geral do CondoManager.</p>
             </div>
           )}
-
         </main>
       </div>
     </div>

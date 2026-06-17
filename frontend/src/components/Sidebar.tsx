@@ -55,6 +55,7 @@ export default function Sidebar({ abaAtiva, setAbaAtiva, onSair, isAdm }: Sideba
             Reservas
           </button>
 
+          {/* ESTA ABA AGORA LEVA APENAS PARA A VISÃO DE LEITURA DO MORADOR */}
           <button
             onClick={() => setAbaAtiva('financeiro')}
             className={`w-full text-left px-4 py-3 text-sm font-semibold rounded-xl transition-all ${
@@ -64,7 +65,7 @@ export default function Sidebar({ abaAtiva, setAbaAtiva, onSair, isAdm }: Sideba
             Financeiro
           </button>
 
-          {/* MENUS ESTRUTURAIS EXCLUSIVOS PARA O ADMINISTRADOR */}
+          {/* MENUS EXCLUSIVOS DO ADMINISTRADOR */}
           {isAdm && (
             <div className="pt-4 mt-4 border-t border-slate-800 space-y-1">
               <span className="block px-4 text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">
@@ -96,6 +97,16 @@ export default function Sidebar({ abaAtiva, setAbaAtiva, onSair, isAdm }: Sideba
                 }`}
               >
                 Registrar Encomenda
+              </button>
+
+              {/* NOVA ABA DE MODIFICAÇÕES E CONFIGURAÇÃO FINANCEIRA DO ADM */}
+              <button
+                onClick={() => setAbaAtiva('registrar-financeiro')}
+                className={`w-full text-left px-4 py-3 text-sm font-semibold rounded-xl transition-all ${
+                  abaAtiva === 'registrar-financeiro' ? 'bg-blue-950 text-blue-400 border border-blue-900/50' : 'hover:bg-slate-800/50 hover:text-slate-200'
+                }`}
+              >
+                Financeiro (ADM)
               </button>
             </div>
           )}

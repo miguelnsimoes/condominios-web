@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import api from '../services/api';
-import { getUserRole } from '../services/auth';
 
 interface Morador {
   id: number;
@@ -15,6 +14,10 @@ interface Pagamento {
   referencia: string;
   morador: Morador;
   status: 'PENDENTE' | 'PAGO' | 'ATRASADO';
+}
+
+interface FinanceiroProps {
+  mode: 'admin' | 'view';
 }
 
 function formatarData(dataIso: string) {
@@ -42,7 +45,7 @@ function formatarMoeda(valor: number) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor);
 }
 
-export default function Financeiro() {
+export default function Financeiro({ mode }: FinanceiroProps) {
   const [pagamentos, setPagamentos] = useState<Pagamento[]>([]);
   const [moradores, setMoradores] = useState<Morador[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,10 +53,7 @@ export default function Financeiro() {
   const [erro, setErro] = useState('');
   const [sucesso, setSucesso] = useState('');
 
-  const userRole = getUserRole();
-  const isAdm = userRole === 'ADM' || userRole === 'FUNCIONARIO';
-
-  // Estados do Formulário
+  // Estados do Formulário (Usado no modo admin)
   const [valorInput, setValorInput] = useState('');
   const [moradorIdInput, setMoradorIdInput] = useState('');
   const [vencimentoInput, setVencimentoInput] = useState('');
@@ -65,7 +65,8 @@ export default function Financeiro() {
 
       let urlPagamentos = '/pagamentos';
       
-      if (!isAdm) {
+      // Se for modo view, filtra apenas pelo ID do morador logado
+      if (mode === 'view') {
         const moradorId = localStorage.getItem('@CondoManager:moradorId');
         if (moradorId) {
           urlPagamentos = `/pagamentos?moradorId=${moradorId}`;
@@ -74,11 +75,11 @@ export default function Financeiro() {
 
       const [resPagamentos, resMoradores] = await Promise.all([
         api.get(urlPagamentos),
-        isAdm ? api.get('/moradores') : Promise.resolve({ data: [] })
+        mode === 'admin' ? api.get('/moradores') : Promise.resolve({ data: [] })
       ]);
 
       setPagamentos(Array.isArray(resPagamentos.data) ? resPagamentos.data : resPagamentos.data?.content ?? []);
-      if (isAdm) {
+      if (mode === 'admin') {
         setMoradores(Array.isArray(resMoradores.data) ? resMoradores.data : resMoradores.data?.content ?? []);
       }
     } catch (err) {
@@ -91,7 +92,7 @@ export default function Financeiro() {
 
   useEffect(() => {
     carregarDados();
-  }, [isAdm]);
+  }, [mode]);
 
   const handleCriarCobranca = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -143,12 +144,12 @@ export default function Financeiro() {
     <div className="space-y-8 max-w-7xl mx-auto">
       <div>
         <h2 className="text-2xl font-bold text-slate-800">
-          {isAdm ? 'Controle Financeiro Geral' : 'Minhas Mensalidades'}
+          {mode === 'admin' ? 'Controle Financeiro Geral (ADM)' : 'Minhas Mensalidades'}
         </h2>
         <p className="text-sm text-slate-500">
-          {isAdm 
-            ? 'Monitore a receita arrecadada, inadimplências e emita taxas extraordinárias.' 
-            : 'Consulte o histórico de faturas e a situação das taxas do seu condomínio.'}
+          {mode === 'admin' 
+            ? 'Monitore inadimplências, receita geral e realize lançamentos extras de taxas ou multas.' 
+            : 'Consulte o histórico de faturas e cobranças vinculadas ao seu perfil.'}
         </p>
       </div>
 
@@ -156,7 +157,7 @@ export default function Financeiro() {
         <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-xs flex items-center justify-between">
           <div>
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-              {isAdm ? 'Total em Aberto / Atrasado' : 'Total Pendente'}
+              {mode === 'admin' ? 'Total Pendente Global' : 'Meu Total Pendente'}
             </p>
             <p className="text-3xl font-bold text-slate-800 mt-1">{formatarMoeda(pendentes)}</p>
           </div>
@@ -166,7 +167,7 @@ export default function Financeiro() {
         <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-xs flex items-center justify-between">
           <div>
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-              {isAdm ? 'Total Arrecadado' : 'Total Pago'}
+              {mode === 'admin' ? 'Total Arrecadado Global' : 'Meu Total Pago'}
             </p>
             <p className="text-3xl font-bold text-emerald-600 mt-1">{formatarMoeda(pagos)}</p>
           </div>
@@ -188,31 +189,34 @@ export default function Financeiro() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        <div className={`${isAdm ? 'lg:col-span-2' : 'lg:col-span-3'} bg-white border border-slate-100 rounded-2xl shadow-xs overflow-hidden h-fit`}>
+        {/* TABELA DE COBRANÇAS */}
+        <div className={`${mode === 'admin' ? 'lg:col-span-2' : 'lg:col-span-3'} bg-white border border-slate-100 rounded-2xl shadow-xs overflow-hidden h-fit`}>
           <div className="p-6 border-b border-slate-100">
-            <h3 className="font-bold text-slate-800">Fluxo de Cobranças</h3>
+            <h3 className="font-bold text-slate-800">
+              {mode === 'admin' ? 'Fluxo de Cobranças do Condomínio' : 'Minhas Faturas'}
+            </h3>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-slate-100 text-xs font-bold text-slate-400 uppercase tracking-wider bg-slate-50/70">
-                  {isAdm && <th className="py-4 px-6">Morador</th>}
+                  {mode === 'admin' && <th className="py-4 px-6">Morador</th>}
                   <th className="py-4 px-6">Referência</th>
                   <th className="py-4 px-6">Vencimento</th>
                   <th className="py-4 px-6">Valor</th>
                   <th className="py-4 px-6">Situação</th>
-                  <th className="py-4 px-6 text-right">Ações</th>
+                  {mode === 'admin' && <th className="py-4 px-6 text-right">Ações</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-sm text-slate-700">
                 {loading ? (
-                  <tr><td colSpan={isAdm ? 6 : 5} className="py-8 text-center text-slate-400 font-medium">Buscando faturas...</td></tr>
+                  <tr><td colSpan={mode === 'admin' ? 6 : 5} className="py-8 text-center text-slate-400 font-medium">Buscando faturas...</td></tr>
                 ) : pagamentos.length === 0 ? (
-                  <tr><td colSpan={isAdm ? 6 : 5} className="py-8 text-center text-slate-400 font-medium">Nenhum registro financeiro encontrado.</td></tr>
+                  <tr><td colSpan={mode === 'admin' ? 6 : 5} className="py-8 text-center text-slate-400 font-medium">Nenhum registro financeiro encontrado.</td></tr>
                 ) : (
                   pagamentos.map((item) => (
                     <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
-                      {isAdm && (
+                      {mode === 'admin' && (
                         <td className="py-4 px-6 font-semibold text-slate-900">
                           {item.morador?.nome ?? 'Não identificado'}
                         </td>
@@ -229,20 +233,24 @@ export default function Financeiro() {
                           {item.status}
                         </span>
                       </td>
-                      <td className="py-4 px-6 text-right">
-                        {item.status !== 'PAGO' ? (
-                          <button
-                            onClick={() => handleQuitarFatura(item.id)}
-                            className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-lg transition-colors"
-                          >
-                            {isAdm ? 'Confirmar Recebimento' : 'Pagar Fatura'}
-                          </button>
-                        ) : (
-                          <span className="text-xs font-semibold text-slate-400">
-                            Pago em: {formatarData(item.dataPagamento || '')}
-                          </span>
-                        )}
-                      </td>
+                      
+                      {/* AÇÕES DE MODIFICAÇÃO DISPONÍVEIS EXCLUSIVAMENTE NO MODO ADMIN */}
+                      {mode === 'admin' && (
+                        <td className="py-4 px-6 text-right">
+                          {item.status !== 'PAGO' ? (
+                            <button
+                              onClick={() => handleQuitarFatura(item.id)}
+                              className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-lg transition-colors"
+                            >
+                              Confirmar Recebimento
+                            </button>
+                          ) : (
+                            <span className="text-xs font-semibold text-slate-400">
+                              Pago em: {formatarData(item.dataPagamento || '')}
+                            </span>
+                          )}
+                        </td>
+                      )}
                     </tr>
                   ))
                 )}
@@ -251,10 +259,11 @@ export default function Financeiro() {
           </div>
         </div>
 
-        {isAdm && (
+        {/* PAINEL DE EMISSÃO MANUAL - EXCLUSIVO DO MODO ADMIN */}
+        {mode === 'admin' && (
           <div className="bg-white p-6 rounded-2xl shadow-xs border border-slate-100 h-fit">
             <h3 className="font-bold text-slate-800 mb-1">Lançar Taxa Extra</h3>
-            <p className="text-xs text-slate-400 mb-4">Gere faturas extras ou multas específicas.</p>
+            <p className="text-xs text-slate-400 mb-4">Gere faturas avulsas ou multas específicas para uma unidade.</p>
             
             <form onSubmit={handleCriarCobranca} className="space-y-4">
               <div>
