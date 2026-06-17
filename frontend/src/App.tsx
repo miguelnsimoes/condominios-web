@@ -1,25 +1,50 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Sidebar from './components/Sidebar';
 import Topbar from './components/Topbar';
 import ListaMoradores from './pages/ListaMoradores';
 import CadastroMorador from './pages/CadastroMorador';
 import CadastroEstrutura from './pages/CadastroEstrutura';
+import EspacosReserva from './pages/EspacosReserva';
 import Reservas from './pages/Reservas';
 import Login from './pages/Login';
 import CadastroUsuario from './pages/CadastroUsuario';
+import { clearSession, getStoredToken, getUserRole, isAdm } from './services/auth';
 
 type TelaAutenticacao = 'login' | 'cadastro_usuario' | 'sistema';
 type SubTelaMoradores = 'lista' | 'cadastro';
 
 function App() {
-  const [telaPrincipal, setTelaPrincipal] = useState<TelaAutenticacao>('login');
+  const [telaPrincipal, setTelaPrincipal] = useState<TelaAutenticacao>(() =>
+    getStoredToken() ? 'sistema' : 'login'
+  );
   const [abaAtiva, setAbaAtiva] = useState<string>('unidades');
   const [subTelaMoradores, setSubTelaMoradores] = useState<SubTelaMoradores>('lista');
   const [moradorParaEdicao, setMoradorParaEdicao] = useState<any | null>(null);
+  const [userRole, setUserRole] = useState<string>(() => getUserRole());
+
+  const userIsAdm = isAdm(userRole);
+  const abasAdm = ['estrutura', 'espacos-reserva'];
+
+  useEffect(() => {
+    if (getStoredToken()) {
+      setUserRole(getUserRole());
+    }
+  }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem('@CondoManager:token');
+    clearSession();
+    setUserRole('');
     setTelaPrincipal('login');
+  };
+
+  const handleEntrar = (role: string) => {
+    setUserRole(role);
+    setTelaPrincipal('sistema');
+  };
+
+  const handleMudarAba = (aba: string) => {
+    if (abasAdm.includes(aba) && !userIsAdm) return;
+    setAbaAtiva(aba);
   };
 
   const handleIniciarEdicao = (morador: any) => {
@@ -30,7 +55,7 @@ function App() {
   if (telaPrincipal === 'login') {
     return (
       <Login 
-        onEntrar={() => setTelaPrincipal('sistema')} 
+        onEntrar={handleEntrar} 
         onIrParaCadastro={() => setTelaPrincipal('cadastro_usuario')} 
       />
     );
@@ -49,8 +74,9 @@ function App() {
     <div className="flex bg-slate-50 min-h-screen font-sans antialiased">
       <Sidebar 
         abaAtiva={abaAtiva} 
-        setAbaAtiva={(aba) => setAbaAtiva(aba)} 
+        setAbaAtiva={handleMudarAba} 
         onSair={handleLogout}
+        isAdm={userIsAdm}
       />
 
       <div className="flex-1 flex flex-col min-w-0">
@@ -79,7 +105,9 @@ function App() {
             </>
           )}
 
-          {abaAtiva === 'estrutura' && <CadastroEstrutura />}
+          {abaAtiva === 'estrutura' && userIsAdm && <CadastroEstrutura />}
+
+          {abaAtiva === 'espacos-reserva' && userIsAdm && <EspacosReserva />}
 
           {abaAtiva === 'reservas' && <Reservas />}
 
