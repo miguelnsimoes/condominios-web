@@ -6,6 +6,7 @@ import CadastroMorador from './pages/CadastroMorador';
 import CadastroEstrutura from './pages/CadastroEstrutura';
 import EspacosReserva from './pages/EspacosReserva';
 import Reservas from './pages/Reservas';
+import Portaria from './pages/Portaria';
 import Login from './pages/Login';
 import CadastroUsuario from './pages/CadastroUsuario';
 import { clearSession, getStoredToken, getUserRole, isAdm } from './services/auth';
@@ -23,7 +24,7 @@ function App() {
   const [userRole, setUserRole] = useState<string>(() => getUserRole());
 
   const userIsAdm = isAdm(userRole);
-  const abasAdm = ['estrutura', 'espacos-reserva'];
+  const abasAdm = ['estrutura', 'espacos-reserva', 'registrar-encomenda'];
 
   useEffect(() => {
     if (getStoredToken()) {
@@ -111,17 +112,16 @@ function App() {
 
           {abaAtiva === 'reservas' && <Reservas />}
 
+          {/* VISTA DO MORADOR: Apenas consulta filtrada */}
+          {abaAtiva === 'portaria' && <Portaria mode="view" />}
+
+          {/* VISTA DO ADM: Painel de gerenciamento completo */}
+          {abaAtiva === 'registrar-encomenda' && userIsAdm && <Portaria mode="admin" />}
+
           {abaAtiva === 'painel' && (
             <div className="p-6 bg-white rounded-2xl border border-slate-100 shadow-xs">
               <h2 className="text-xl font-bold text-slate-800">Painel Geral</h2>
               <p className="text-sm text-slate-500 mt-1">Módulo geral do CondoManager.</p>
-            </div>
-          )}
-
-          {abaAtiva === 'portaria' && (
-            <div className="p-6 bg-white rounded-2xl border border-slate-100 shadow-xs">
-              <h2 className="text-xl font-bold text-slate-800">Controle de Portaria</h2>
-              <p className="text-sm text-slate-500 mt-1">Módulo de monitoramento em desenvolvimento.</p>
             </div>
           )}
 
