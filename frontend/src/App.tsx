@@ -7,6 +7,7 @@ import CadastroEstrutura from './pages/CadastroEstrutura';
 import EspacosReserva from './pages/EspacosReserva';
 import Reservas from './pages/Reservas';
 import Portaria from './pages/Portaria';
+import Financeiro from './pages/Financeiro'; // <-- NOVO IMPORT ADICIONADO
 import Login from './pages/Login';
 import CadastroUsuario from './pages/CadastroUsuario';
 import { clearSession, getStoredToken, getUserRole, isAdm } from './services/auth';
@@ -118,6 +119,9 @@ function App() {
           {/* VISTA DO ADM: Painel de gerenciamento completo */}
           {abaAtiva === 'registrar-encomenda' && userIsAdm && <Portaria mode="admin" />}
 
+          {/* NOVO COMPONENTE FINANCEIRO */}
+          {abaAtiva === 'financeiro' && <Financeiro />}
+
           {abaAtiva === 'painel' && (
             <div className="p-6 bg-white rounded-2xl border border-slate-100 shadow-xs">
               <h2 className="text-xl font-bold text-slate-800">Painel Geral</h2>
@@ -125,12 +129,6 @@ function App() {
             </div>
           )}
 
-          {abaAtiva === 'financeiro' && (
-            <div className="p-6 bg-white rounded-2xl border border-slate-100 shadow-xs">
-              <h2 className="text-xl font-bold text-slate-800">Financeiro</h2>
-              <p className="text-sm text-slate-500 mt-1">Módulo de faturamento em desenvolvimento.</p>
-            </div>
-          )}
         </main>
       </div>
     </div>
